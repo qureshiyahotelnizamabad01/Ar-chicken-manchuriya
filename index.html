@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Biryani AR</title>
+
+<script type="module"
+  src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js">
+</script>
+
+<style>
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: black;
+  font-family: system-ui, Arial;
+}
+
+/* Camera background */
+#camVideo {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+
+/* 3D model layer */
+model-viewer {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  z-index: 1;
+
+  /* IMPORTANT: allow touch */
+  pointer-events: auto;
+  touch-action: none;
+}
+
+/* Top controls */
+#ui {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  gap: 10px;
+  background: rgba(0,0,0,0.55);
+  padding: 10px;
+  border-radius: 12px;
+  z-index: 5;
+}
+
+button {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  background: #e53935;
+}
+
+#stopBtn {
+  background: #666;
+}
+
+/* Start overlay */
+#overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(0,0,0,0.7);
+  z-index: 10;
+}
+
+#overlay.hidden {
+  display: none;
+}
+
+/* Status */
+#status {
+  position: fixed;
+  bottom: 12px;
+  left: 12px;
+  background: rgba(0,0,0,0.6);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  z-index: 6;
+}
+</style>
+</head>
+
+<body>
+
+<!-- Camera -->
+<video id="camVideo" autoplay playsinline muted></video>
+
+<!-- 3D Model -->
+<model-viewer
+  src="textured.glb"
+  alt="Biryani"
+  camera-controls
+  interaction-prompt="none"
+  ar
+  ar-modes="webxr scene-viewer"
+  ar-placement="floor"
+  disable-tap
+  shadow-intensity="1"
+  exposure="1.1"
+  environment-image="neutral">
+</model-viewer>
+
+<!-- UI -->
+<div id="ui" hidden>
+  <button id="switchBtn">Switch Camera</button>
+  <button id="stopBtn">Stop</button>
+</div>
+
+<!-- Start Screen -->
+<div id="overlay">
+  <div style="text-align:center;color:white">
+    <h2>View in AR</h2>
+    <p>Tap to allow camera access</p>
+    <button id="startBtn" style="font-size:18px">📸 Start Camera</button>
+  </div>
+</div>
+
+<div id="status">Waiting…</div>
+
+<script>
+const video = document.getElementById('camVideo');
+const overlay = document.getElementById('overlay');
+const ui = document.getElementById('ui');
+const status = document.getElementById('status');
+
+let stream = null;
+let facing = "environment";
+
+function setStatus(msg) {
+  status.textContent = msg;
+}
+
+async function startCamera() {
+  if (stream) {
+    stream.getTracks().forEach(t => t.stop());
+  }
+
+  stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: facing }
+  });
+
+  video.srcObject = stream;
+  await video.play();
+
+  overlay.classList.add("hidden");
+  ui.hidden = false;
+  setStatus("Camera started");
+}
+
+document.getElementById("startBtn").onclick = async () => {
+  try {
+    setStatus("Requesting camera…");
+    await startCamera();
+  } catch (e) {
+    setStatus("Camera permission failed");
+  }
+};
+
+document.getElementById("switchBtn").onclick = async () => {
+  facing = facing === "environment" ? "user" : "environment";
+  setStatus("Switching camera…");
+  await startCamera();
+};
+
+document.getElementById("stopBtn").onclick = () => {
+  if (stream) {
+    stream.getTracks().forEach(t => t.stop());
+  }
+  ui.hidden = true;
+  overlay.classList.remove("hidden");
+  setStatus("Stopped");
+};
+</script>
+
+</body>
+</html>
+
